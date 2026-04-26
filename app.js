@@ -199,6 +199,18 @@ app.get('/admin', verifyToken, isAdmin, (req, res) => res.sendFile(path.join(__d
 
 app.post('/admin/productos', verifyToken, isAdmin, (req, res) => {
     const { nombre, descripcion, precio, categoria, stock } = req.body;
+
+    // Validaciones
+    if (!nombre || !precio || stock === undefined) {
+        return res.status(400).send('Faltan campos obligatorios');
+    }
+    if (parseFloat(precio) <= 0) {
+        return res.status(400).send('El precio debe ser mayor a 0');
+    }
+    if (parseInt(stock) < 0) {
+        return res.status(400).send('El stock no puede ser negativo');
+    }
+
     db.query('INSERT INTO productos (nombre, descripcion, precio, categoria, stock) VALUES (?, ?, ?, ?, ?)',
         [nombre, descripcion, precio, categoria, stock], (err) => {
             if (err) return res.status(500).send(err);
@@ -208,6 +220,18 @@ app.post('/admin/productos', verifyToken, isAdmin, (req, res) => {
 
 app.post('/admin/productos/editar', verifyToken, isAdmin, (req, res) => {
     const { id, nombre, precio, stock } = req.body;
+
+    // Validaciones
+    if (!id || !nombre || !precio || stock === undefined) {
+        return res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
+    }
+    if (parseFloat(precio) <= 0) {
+        return res.status(400).json({ success: false, message: 'El precio debe ser mayor a 0' });
+    }
+    if (parseInt(stock) < 0) {
+        return res.status(400).json({ success: false, message: 'El stock no puede ser negativo' });
+    }
+
     db.query('UPDATE productos SET nombre = ?, precio = ?, stock = ? WHERE id = ?',
         [nombre, precio, stock, id], (err) => {
             if (err) return res.status(500).send(err);
