@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Compras - PC Sales</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        .order-card { background: var(--glass); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; margin-bottom: 2rem; text-align: left; }
+        .order-header { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem; margin-bottom: 1rem; }
+        .order-items { color: #94a3b8; font-size: 0.95rem; }
+        .order-total { color: var(--primary); font-weight: 600; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+    <div class="container" style="max-width: 900px; display: block; height: auto; min-height: 100vh; padding: 4rem 2rem;">
+        <nav style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem;">
+            <h1>Mis Pedidos</h1>
+            <a href="/tienda" class="btn-primary" style="width: auto; padding: 0.5rem 1.5rem; margin: 0; text-decoration: none;">Volver a la Tienda</a>
+        </nav>
+
+        <div id="historial-ordenes">
+            <p>Cargando tu historial de compras...</p>
+        </div>
+    </div>
+
+    <script>
+        async function cargarHistorial() {
+            const resp = await fetch('/api/mis-ordenes');
+            const ordenes = await resp.json();
+            const container = document.getElementById('historial-ordenes');
+            container.innerHTML = '';
+
+            if (ordenes.length === 0) {
+                container.innerHTML = '<h2>Aún no has realizado ninguna compra.</h2>';
+                return;
+            }
+
+            ordenes.forEach(order => {
+                const fecha = new Date(order.fecha).toLocaleDateString();
+                container.innerHTML += `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div>
+                                <span style="color: #64748b;">Pedido #${order.id}</span>
+                                <div style="font-size: 0.8rem; opacity: 0.7;">${fecha}</div>
+                            </div>
+                            <div class="order-total">$${order.total}</div>
+                        </div>
+                        <div class="order-items">
+                            <strong>Productos:</strong> ${order.productos}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        cargarHistorial();
+    </script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda de Computación - PC Sales</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2rem; width: 100%; max-width: 1200px; padding: 2rem 0; }
+        .product-card { background: var(--glass); backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 1.5rem; transition: transform 0.3s; text-align: left; }
+        .product-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+        .price-tag { color: var(--primary); font-size: 1.5rem; font-weight: 600; margin: 0.5rem 0; }
+        .stock-tag { font-size: 0.8rem; color: #64748b; margin-bottom: 1rem; }
+        .stock-tag.low { color: #ef4444; font-weight: 600; }
+        .category-pill { display: inline-block; padding: 0.3rem 0.8rem; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 0.7rem; color: var(--primary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .filters-container { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); }
+        .search-bar { width: 100%; position: relative; }
+        .search-bar input { padding-left: 3rem; }
+        .search-icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); opacity: 0.5; }
+        
+        .controls-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .filter-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 30px; color: white; cursor: pointer; transition: 0.3s; font-size: 0.85rem; }
+        .filter-btn.active { background: var(--primary); border-color: var(--primary); }
+        
+        select.sort-select { background: #0f172a; border: 1px solid #334155; color: white; padding: 0.5rem 1rem; border-radius: 30px; cursor: pointer; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="container" style="max-width: 1300px; display: block; height: auto; min-height: 100vh; padding: 4rem 2rem;">
+        <nav style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h1>TIENDA PC SALES</h1>
+            <div style="display: flex; gap: 1.5rem; align-items: center;">
+                <a href="/compras" style="color: var(--primary); text-decoration: none; font-weight: 600;">Mis Compras</a>
+                <div style="position: relative; cursor: pointer;" onclick="toggleCart()">
+                    <span style="font-size: 1.5rem;">🛒</span>
+                    <span id="cart-count" class="cart-badge">0</span>
+                </div>
+                <a href="/logout" style="color: #ef4444; text-decoration: none; font-weight: 600;">Cerrar Sesión</a>
+            </div>
+        </nav>
+
+        <!-- CONTENEDOR DE FILTROS Y BÚSQUEDA -->
+        <div class="filters-container">
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="busqueda-input" placeholder="Buscar por modelo, marca o descripción..." oninput="manejarBusqueda()">
+            </div>
+            
+            <div class="controls-row">
+                <div class="filter-bar">
+                    <button class="filter-btn active" onclick="filtrarCategoria('Todas', this)">Todas</button>
+                    <button class="filter-btn" onclick="filtrarCategoria('Procesadores', this)">Procesadores</button>
+                    <button class="filter-btn" onclick="filtrarCategoria('Placas de Video', this)">GPUs</button>
+                    <button class="filter-btn" onclick="filtrarCategoria('Memorias RAM', this)">RAM</button>
+                    <button class="filter-btn" onclick="filtrarCategoria('Almacenamiento', this)">Discos</button>
+                    <button class="filter-btn" onclick="filtrarCategoria('Periféricos', this)">Periféricos</button>
+                </div>
+
+                <div>
+                    <label style="font-size: 0.8rem; color: #64748b; margin-right: 0.5rem;">Ordenar por:</label>
+                    <select id="orden-select" class="sort-select" onchange="manejarOrden()">
+                        <option value="nombre_asc">Nombre (A-Z)</option>
+                        <option value="nombre_desc">Nombre (Z-A)</option>
+                        <option value="precio_asc">Precio: Menor a Mayor</option>
+                        <option value="precio_desc">Precio: Mayor a Menor</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="tienda-productos" class="catalog-grid">
+            <p>Iniciando catálogo inteligente...</p>
+        </div>
+    </div>
+
+    <!-- SIDEBAR DEL CARRITO -->
+    <div id="cart-sidebar" class="cart-sidebar">
+        <div class="cart-header">
+            <h2 style="margin: 0;">Tu Carrito</h2>
+            <span class="close-cart" onclick="toggleCart()">×</span>
+        </div>
+        <div id="cart-items" class="cart-items"></div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span id="cart-total-value">$0.00</span>
+            </div>
+            <button id="btn-finalizar" class="btn-primary" onclick="finalizarCompra()">Finalizar Compra</button>
+        </div>
+    </div>
+
+    <script>
+        let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
+        let filtrosActuales = {
+            cat: 'Todas',
+            search: '',
+            sort: 'nombre_asc'
+        };
+
+        async function cargarTienda() {
+            const { cat, search, sort } = filtrosActuales;
+            const queryParams = new URLSearchParams({ cat, search, sort });
+            
+            const resp = await fetch(`/api/productos?${queryParams.toString()}`);
+            const productos = await resp.json();
+            const grid = document.getElementById('tienda-productos');
+            grid.innerHTML = '';
+            
+            if (productos.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; opacity: 0.5;"><h3>No se encontraron productos que coincidan.</h3></div>';
+                return;
+            }
+
+            productos.forEach(prod => {
+                const isOutOfStock = prod.stock <= 0;
+                grid.innerHTML += `
+                    <div class="product-card">
+                        <span class="category-pill">${prod.categoria}</span>
+                        <h2 style="color: white; font-size: 1.1rem;">${prod.nombre}</h2>
+                        <div class="price-tag">$${prod.precio}</div>
+                        <div class="stock-tag ${prod.stock > 0 && prod.stock <= 3 ? 'low' : ''}">
+                            ${isOutOfStock ? '⚠️ AGOTADO' : `Disponibles: ${prod.stock}`}
+                        </div>
+                        <div style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 1.2rem; height: 3em; overflow: hidden;">${prod.descripcion}</div>
+                        <button class="btn-primary" 
+                                ${isOutOfStock ? 'disabled' : ''} 
+                                style="${isOutOfStock ? 'opacity:0.3; cursor:not-allowed;' : ''}"
+                                onclick='agregarAlCarrito(${JSON.stringify(prod)})'>
+                            ${isOutOfStock ? 'Sin Stock' : 'Agregar'}
+                        </button>
+                    </div>
+                `;
+            });
+            actualizarUI();
+        }
+
+        // --- MANEJADORES DE FILTROS ---
+
+        function filtrarCategoria(categoria, btn) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filtrosActuales.cat = categoria;
+            cargarTienda();
+        }
+
+        function manejarBusqueda() {
+            filtrosActuales.search = document.getElementById('busqueda-input').value;
+            cargarTienda(); // Búsqueda en vivo
+        }
+
+        function manejarOrden() {
+            filtrosActuales.sort = document.getElementById('orden-select').value;
+            cargarTienda();
+        }
+
+        // --- LÓGICA DE CARRITO (Igual que antes) ---
+
+        function agregarAlCarrito(producto) {
+            const index = carrito.findIndex(item => item.id === producto.id);
+            if (index > -1) {
+                if (carrito[index].cantidad >= producto.stock) return alert('Sin más stock');
+                carrito[index].cantidad += 1;
+            } else {
+                carrito.push({ ...producto, cantidad: 1 });
+            }
+            actualizarUI();
+            toggleCart(true);
+        }
+
+        function quitarDelCarrito(id) {
+            carrito = carrito.filter(item => item.id !== id);
+            actualizarUI();
+        }
+
+        function actualizarUI() {
+            localStorage.setItem('carrito', JSON.stringify(carrito));
+            document.getElementById('cart-count').innerText = carrito.reduce((acc, i) => acc + i.cantidad, 0);
+            const container = document.getElementById('cart-items');
+            container.innerHTML = '';
+            let total = 0;
+            carrito.forEach(item => {
+                total += item.precio * item.cantidad;
+                container.innerHTML += `
+                    <div class="cart-item">
+                        <div><h4 style="margin:0;">${item.nombre} x${item.cantidad}</h4><small>$${(item.precio * item.cantidad).toFixed(2)}</small></div>
+                        <button onclick="quitarDelCarrito(${item.id})" style="background:none; border:none; color:#ef4444; cursor:pointer;">×</button>
+                    </div>
+                `;
+            });
+            document.getElementById('cart-total-value').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function toggleCart(forceOpen = false) {
+            const sidebar = document.getElementById('cart-sidebar');
+            if (forceOpen) sidebar.classList.add('open');
+            else sidebar.classList.toggle('open');
+        }
+
+        async function finalizarCompra() {
+            if (carrito.length === 0) return;
+            const total = carrito.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
+            const resp = await fetch('/api/ordenes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ carrito, total })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                alert('¡Compra exitosa!');
+                carrito = [];
+                actualizarUI();
+                window.location.href = '/compras';
+            } else {
+                alert('Error: ' + data.message);
+                window.location.reload();
+            }
+        }
+
+        cargarTienda();
+    </script>
+</body>
+</html>
